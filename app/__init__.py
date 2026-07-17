@@ -1,0 +1,1 @@
+"""Salon daily sales API."""
