@@ -1,0 +1,53 @@
+name: Test and deploy backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --all-groups
+
+      - name: Verify backend
+        run: |
+          uv run ruff check .
+          uv run mypy app
+          uv run pytest -q
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Deploy to CapRover
+        env:
+          CAPROVER_PASSWORD: ${{ secrets.CAPROVER_PASSWORD }}
+        run: >-
+          npx --yes caprover@2.3.1 deploy
+          --caproverUrl https://captain.captain.ethra2.com
+          --caproverPassword "$CAPROVER_PASSWORD"
+          --caproverApp salon-sales-api
+          --branch main
